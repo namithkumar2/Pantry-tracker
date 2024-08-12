@@ -7,8 +7,6 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, setDoc, deleteDoc }
 export default function Home() {
   const [inventory, setInventory] = useState([])
   const [itemName, setItemName] = useState('')
-
-  // Fetch the inventory from Firestore
   const updateInventory = async () => {
     const snapshot = await getDocs(query(collection(firestore, 'inventory')))
     const inventoryList = snapshot.docs
@@ -16,29 +14,24 @@ export default function Home() {
         name: doc.id, 
         ...doc.data(),
       }))
-      .filter(item => item.count > 0) // Filter out items with a count of 0
+      .filter(item=> item.count > 0) 
     setInventory(inventoryList)
   }
-
-  // Add an item to Firestore
   const handleAddItem = async (name) => {
     if (name.trim() === "") return; // Avoid empty names
     const itemRef = doc(firestore, 'inventory', name)
     const itemSnapshot = await getDoc(itemRef)
-
     if (itemSnapshot.exists()) {
       await updateDoc(itemRef, {
-        count: itemSnapshot.data().count + 1
+        count: itemSnapshot.data().count +1
       })
     } else {
       await setDoc(itemRef, { count: 1 })
     }
     updateInventory()
   }
-
-  // Remove an item from Firestore
   const handleRemoveItem = async (name) => {
-    if (name.trim() === "") return; // Avoid empty names
+    if (name.trim() === "") return; 
     const itemRef = doc(firestore, 'inventory', name)
     const itemSnapshot = await getDoc(itemRef)
 
@@ -49,16 +42,13 @@ export default function Home() {
           count: newCount
         })
       } else {
-        await deleteDoc(itemRef) // Delete the item from Firestore if count reaches 0
-      }
+        await deleteDoc(itemRef) 
     }
     updateInventory()
   }
-
   useEffect(() => {
     updateInventory()
   }, [])
-
   return (
     <Box padding={5}>
       <Typography variant="h3" textAlign="center">Inventory Management</Typography>
@@ -66,11 +56,11 @@ export default function Home() {
         <TextField 
           label="Item Name" 
           value={itemName} 
-          onChange={(e) => setItemName(e.target.value)} 
+          onChange={(e)=> setItemName(e.target.value)} 
           variant="outlined"
-          sx={{ mb: 2, width: '300px' }}
+          sx={{ mb: 2, width:'300px' }}
         />
-        <Button variant="contained" onClick={() => handleAddItem(itemName)}>Add New Item</Button>
+        <Button variant="contained" onClick={()=>handleAddItem(itemName)}>Add New Item</Button>
         <Box mt={4} width="100%">
           {inventory.length === 0 ? (
             <Typography>No items in inventory.</Typography>
@@ -79,7 +69,7 @@ export default function Home() {
               <Box key={item.name} mb={2} display="flex" justifyContent="space-between" alignItems="center" sx={{ borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
                 <Typography variant="h6">{item.name}: {item.count}</Typography>
                 <Stack direction="row" spacing={2}>
-                  <Button variant="contained" onClick={() => handleAddItem(item.name)}>Add</Button>
+                  <Button variant="contained" onClick={()=>handleAddItem(item.name)}>Add</Button>
                   <Button variant="contained" onClick={() => handleRemoveItem(item.name)}>Remove</Button>
                 </Stack>
               </Box>
