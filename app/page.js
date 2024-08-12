@@ -1,95 +1,92 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+import { useState, useEffect } from 'react'
+import { firestore } from '@/firebase'
+import { Box, Typography, Button, TextField, Stack } from '@mui/material'
+import { collection, doc, getDoc, getDocs, query, updateDoc, setDoc, deleteDoc } from 'firebase/firestore'
 
 export default function Home() {
+  const [inventory, setInventory] = useState([])
+  const [itemName, setItemName] = useState('')
+
+  // Fetch the inventory from Firestore
+  const updateInventory = async () => {
+    const snapshot = await getDocs(query(collection(firestore, 'inventory')))
+    const inventoryList = snapshot.docs
+      .map(doc => ({
+        name: doc.id, 
+        ...doc.data(),
+      }))
+      .filter(item => item.count > 0) // Filter out items with a count of 0
+    setInventory(inventoryList)
+  }
+
+  // Add an item to Firestore
+  const handleAddItem = async (name) => {
+    if (name.trim() === "") return; // Avoid empty names
+    const itemRef = doc(firestore, 'inventory', name)
+    const itemSnapshot = await getDoc(itemRef)
+
+    if (itemSnapshot.exists()) {
+      await updateDoc(itemRef, {
+        count: itemSnapshot.data().count + 1
+      })
+    } else {
+      await setDoc(itemRef, { count: 1 })
+    }
+    updateInventory()
+  }
+
+  // Remove an item from Firestore
+  const handleRemoveItem = async (name) => {
+    if (name.trim() === "") return; // Avoid empty names
+    const itemRef = doc(firestore, 'inventory', name)
+    const itemSnapshot = await getDoc(itemRef)
+
+    if (itemSnapshot.exists() && itemSnapshot.data().count > 0) {
+      const newCount = itemSnapshot.data().count - 1
+      if (newCount > 0) {
+        await updateDoc(itemRef, {
+          count: newCount
+        })
+      } else {
+        await deleteDoc(itemRef) // Delete the item from Firestore if count reaches 0
+      }
+    }
+    updateInventory()
+  }
+
+  useEffect(() => {
+    updateInventory()
+  }, [])
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+    <Box padding={5}>
+      <Typography variant="h3" textAlign="center">Inventory Management</Typography>
+      <Box mt={4} display="flex" justifyContent="center" alignItems="center" flexDirection="column">
+        <TextField 
+          label="Item Name" 
+          value={itemName} 
+          onChange={(e) => setItemName(e.target.value)} 
+          variant="outlined"
+          sx={{ mb: 2, width: '300px' }}
         />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+        <Button variant="contained" onClick={() => handleAddItem(itemName)}>Add New Item</Button>
+        <Box mt={4} width="100%">
+          {inventory.length === 0 ? (
+            <Typography>No items in inventory.</Typography>
+          ) : (
+            inventory.map((item) => (
+              <Box key={item.name} mb={2} display="flex" justifyContent="space-between" alignItems="center" sx={{ borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
+                <Typography variant="h6">{item.name}: {item.count}</Typography>
+                <Stack direction="row" spacing={2}>
+                  <Button variant="contained" onClick={() => handleAddItem(item.name)}>Add</Button>
+                  <Button variant="contained" onClick={() => handleRemoveItem(item.name)}>Remove</Button>
+                </Stack>
+              </Box>
+            ))
+          )}
+        </Box>
+      </Box>
+    </Box>
+  )
 }
